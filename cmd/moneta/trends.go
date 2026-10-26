@@ -74,7 +74,7 @@ func runTrendsAt(
 		return 2
 	}
 	if flags.NArg() != 0 {
-		fmt.Fprintln(stderr, "error: trends does not accept positional arguments")
+		_, _ = fmt.Fprintln(stderr, "error: trends does not accept positional arguments")
 		return 2
 	}
 	provided := make(map[string]bool)
@@ -82,17 +82,17 @@ func runTrendsAt(
 		provided[value.Name] = true
 	})
 	if *limit < 1 {
-		fmt.Fprintln(stderr, "error: --limit must be at least 1")
+		_, _ = fmt.Fprintln(stderr, "error: --limit must be at least 1")
 		return 2
 	}
 	if *metric == "" {
-		fmt.Fprintf(stderr, "error: --metric is required (supported: %s)\n", trendMetricsHelp)
+		_, _ = fmt.Fprintf(stderr, "error: --metric is required (supported: %s)\n", trendMetricsHelp)
 		return 2
 	}
 	if *metric != trendMetricMoM && *metric != trendMetricMerchants &&
 		*metric != trendMetricUtilization && *metric != trendMetricSavings &&
 		*metric != trendMetricFixedVariable {
-		fmt.Fprintf(
+		_, _ = fmt.Fprintf(
 			stderr,
 			"error: unknown --metric %q (supported: %s)\n",
 			*metric,
@@ -109,11 +109,11 @@ func runTrendsAt(
 	switch *metric {
 	case trendMetricMoM:
 		if provided["history"] {
-			fmt.Fprintln(stderr, "error: --history is supported only by --metric utilization")
+			_, _ = fmt.Fprintln(stderr, "error: --history is supported only by --metric utilization")
 			return 2
 		}
 		if *from != "" || *to != "" {
-			fmt.Fprintln(
+			_, _ = fmt.Fprintln(
 				stderr,
 				"error: --metric mom requires --period YYYY-MM or the default current month; --from/--to are unsupported",
 			)
@@ -121,7 +121,7 @@ func runTrendsAt(
 		}
 		period, err := store.ResolveTrendMoMPeriod(*periodValue, now)
 		if err != nil {
-			fmt.Fprintf(stderr, "error: --period %v\n", err)
+			_, _ = fmt.Fprintf(stderr, "error: --period %v\n", err)
 			return 2
 		}
 		momFilter = store.TrendMoMFilter{
@@ -133,12 +133,12 @@ func runTrendsAt(
 		}
 	case trendMetricMerchants:
 		if provided["history"] {
-			fmt.Fprintln(stderr, "error: --history is supported only by --metric utilization")
+			_, _ = fmt.Fprintln(stderr, "error: --history is supported only by --metric utilization")
 			return 2
 		}
 		period, err := resolveReadPeriod(*periodValue, *from, *to, now)
 		if err != nil {
-			fmt.Fprintf(stderr, "error: %v\n", err)
+			_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 			return 2
 		}
 		merchantsFilter = store.TrendMerchantsFilter{
@@ -146,7 +146,7 @@ func runTrendsAt(
 		}
 	case trendMetricUtilization:
 		if provided["limit"] || provided["full"] {
-			fmt.Fprintln(stderr, "error: --limit/--full are unsupported by --metric utilization")
+			_, _ = fmt.Fprintln(stderr, "error: --limit/--full are unsupported by --metric utilization")
 			return 2
 		}
 		period, err := resolveTrendUtilizationPeriod(
@@ -161,7 +161,7 @@ func runTrendsAt(
 			now,
 		)
 		if err != nil {
-			fmt.Fprintf(stderr, "error: %v\n", err)
+			_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 			return 2
 		}
 		utilizationFilter = store.TrendUtilizationFilter{
@@ -169,16 +169,16 @@ func runTrendsAt(
 		}
 	case trendMetricSavings:
 		if provided["history"] {
-			fmt.Fprintln(stderr, "error: --history is supported only by --metric utilization")
+			_, _ = fmt.Fprintln(stderr, "error: --history is supported only by --metric utilization")
 			return 2
 		}
 		if provided["limit"] || provided["full"] {
-			fmt.Fprintln(stderr, "error: --limit/--full are unsupported by --metric savings")
+			_, _ = fmt.Fprintln(stderr, "error: --limit/--full are unsupported by --metric savings")
 			return 2
 		}
 		period, err := resolveReadPeriod(*periodValue, *from, *to, now)
 		if err != nil {
-			fmt.Fprintf(stderr, "error: %v\n", err)
+			_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 			return 2
 		}
 		savingsFilter = store.CashflowFilter{
@@ -186,16 +186,16 @@ func runTrendsAt(
 		}
 	case trendMetricFixedVariable:
 		if provided["history"] {
-			fmt.Fprintln(stderr, "error: --history is supported only by --metric utilization")
+			_, _ = fmt.Fprintln(stderr, "error: --history is supported only by --metric utilization")
 			return 2
 		}
 		if provided["limit"] || provided["full"] {
-			fmt.Fprintln(stderr, "error: --limit/--full are unsupported by --metric fixed-variable")
+			_, _ = fmt.Fprintln(stderr, "error: --limit/--full are unsupported by --metric fixed-variable")
 			return 2
 		}
 		period, err := resolveReadPeriod(*periodValue, *from, *to, now)
 		if err != nil {
-			fmt.Fprintf(stderr, "error: %v\n", err)
+			_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 			return 2
 		}
 		fixedVariableFilter = store.TrendFixedVariableFilter{
@@ -204,13 +204,13 @@ func runTrendsAt(
 	}
 
 	if *databasePath == "" {
-		fmt.Fprintln(stderr, "error: MONETA_DB_PATH or --db is required")
+		_, _ = fmt.Fprintln(stderr, "error: MONETA_DB_PATH or --db is required")
 		return 2
 	}
 
 	database, err := store.Open(ctx, *databasePath)
 	if err != nil {
-		fmt.Fprintf(stderr, "error: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 		return 1
 	}
 	defer func() { _ = database.Close() }()
@@ -224,35 +224,35 @@ func runTrendsAt(
 	case trendMetricMoM:
 		report, err := store.ReadTrendMoM(ctx, database, momFilter, rowLimit)
 		if err != nil {
-			fmt.Fprintf(stderr, "error: %v\n", err)
+			_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 			return 1
 		}
 		document = buildTrendMoMDoc(report, momFilter)
 	case trendMetricMerchants:
 		report, err := store.ReadTrendMerchants(ctx, database, merchantsFilter, rowLimit)
 		if err != nil {
-			fmt.Fprintf(stderr, "error: %v\n", err)
+			_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 			return 1
 		}
 		document = buildTrendMerchantsDoc(report, merchantsFilter)
 	case trendMetricUtilization:
 		report, err := store.ReadTrendUtilization(ctx, database, utilizationFilter)
 		if err != nil {
-			fmt.Fprintf(stderr, "error: %v\n", err)
+			_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 			return 1
 		}
 		document = buildTrendUtilizationDoc(report)
 	case trendMetricSavings:
 		summary, err := store.ReadCashflow(ctx, database, savingsFilter)
 		if err != nil {
-			fmt.Fprintf(stderr, "error: %v\n", err)
+			_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 			return 1
 		}
 		document = buildTrendSavingsDoc(summary, savingsFilter)
 	case trendMetricFixedVariable:
 		report, err := store.ReadTrendFixedVariable(ctx, database, fixedVariableFilter)
 		if err != nil {
-			fmt.Fprintf(stderr, "error: %v\n", err)
+			_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 			return 1
 		}
 		document = buildTrendFixedVariableDoc(report, fixedVariableFilter)
@@ -263,7 +263,7 @@ func runTrendsAt(
 		format = cli.FormatJSON
 	}
 	if err := cli.Render(stdout, document, format); err != nil {
-		fmt.Fprintf(stderr, "error: render trends: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: render trends: %v\n", err)
 		return 1
 	}
 	return 0

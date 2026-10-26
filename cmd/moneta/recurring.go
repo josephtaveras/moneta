@@ -46,23 +46,23 @@ func runRecurringAt(
 		return 2
 	}
 	if flags.NArg() != 0 {
-		fmt.Fprintln(stderr, "error: recurring does not accept positional arguments")
+		_, _ = fmt.Fprintln(stderr, "error: recurring does not accept positional arguments")
 		return 2
 	}
 	switch *kind {
 	case "", "subscription", "bill", "income":
 	default:
-		fmt.Fprintln(stderr, "error: --kind must be subscription, bill, or income")
+		_, _ = fmt.Fprintln(stderr, "error: --kind must be subscription, bill, or income")
 		return 2
 	}
 	if *databasePath == "" {
-		fmt.Fprintln(stderr, "error: MONETA_DB_PATH or --db is required")
+		_, _ = fmt.Fprintln(stderr, "error: MONETA_DB_PATH or --db is required")
 		return 2
 	}
 
 	database, err := store.Open(ctx, *databasePath)
 	if err != nil {
-		fmt.Fprintf(stderr, "error: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 		return 1
 	}
 	defer func() { _ = database.Close() }()
@@ -71,7 +71,7 @@ func runRecurringAt(
 		Kind: *kind,
 	})
 	if err != nil {
-		fmt.Fprintf(stderr, "error: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 		return 1
 	}
 	format := cli.FormatTOON
@@ -79,7 +79,7 @@ func runRecurringAt(
 		format = cli.FormatJSON
 	}
 	if err := cli.Render(stdout, report.Recurring(recurringReport), format); err != nil {
-		fmt.Fprintf(stderr, "error: render recurring: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: render recurring: %v\n", err)
 		return 1
 	}
 	return 0

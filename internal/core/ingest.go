@@ -528,10 +528,10 @@ func (w *syncWriter) updateTransaction(
 			merchant_raw = ?,
 			merchant_display = ?,
 			merchant_norm = ?,
-			category_id = ?,
+			category_id = CASE WHEN classification_manual = 1 THEN category_id ELSE ? END,
 			status = ?,
-			is_transfer = ?,
-			excluded = ?,
+			is_transfer = CASE WHEN classification_manual = 1 THEN is_transfer ELSE ? END,
+			excluded = CASE WHEN classification_manual = 1 THEN excluded ELSE ? END,
 			dedup_hash = ?,
 			updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
 		WHERE id = ?

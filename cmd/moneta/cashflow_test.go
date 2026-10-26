@@ -38,6 +38,7 @@ func TestSavingsRateNumber(t *testing.T) {
 			}
 			if got == nil {
 				t.Fatal("savingsRateNumber() = nil")
+				return
 			}
 			if string(*got) != test.want {
 				t.Errorf("savingsRateNumber() = %q, want %q", *got, test.want)

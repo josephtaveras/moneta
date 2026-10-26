@@ -11,12 +11,29 @@ import (
 	"github.com/jmoneytech-stack/moneta/internal/store"
 )
 
+// ErrProviderSync wraps every error returned by the provider's Sync call, so
+// callers can tell provider failures from local decrypt, build, and database
+// failures. It never adds provider-supplied text of its own.
+var ErrProviderSync = errors.New("sync provider item")
+
 // SyncResult summarizes one orchestrated provider Item sync.
 type SyncResult struct {
 	// Skipped lists records dropped during provider normalization and ingest,
 	// provider records first, with stable machine-readable reasons. It is
 	// empty when the sync dropped nothing.
 	Skipped []canon.SkippedRecord
+	// NextCursor is the checkpoint committed with this batch.
+	NextCursor string
+	// HasMore reports that the provider stopped short of the present. Sync
+	// again with NextCursor as both the pull and expected cursor to continue.
+	HasMore bool
+	// Accounts and Transactions count the account and added transaction
+	// records the provider returned in this batch.
+	Accounts     int
+	Transactions int
+	// ConnectionWarnings counts provider connection warnings that did not
+	// fail the batch.
+	ConnectionWarnings int
 }
 
 // SyncProviderItem decrypts one stored credential, builds its provider, pulls
@@ -85,7 +102,7 @@ func syncProviderItemWithPlaintext(
 	}
 	batch, err := provider.Sync(ctx, pullCursor)
 	if err != nil {
-		return nil, fmt.Errorf("sync provider item: %w", err)
+		return nil, fmt.Errorf("%w: %w", ErrProviderSync, err)
 	}
 
 	defaultEntityID, err := store.EnsureDefaultEntity(ctx, db)
@@ -104,7 +121,13 @@ func syncProviderItemWithPlaintext(
 		return nil, fmt.Errorf("apply provider sync: %w", err)
 	}
 
-	result := &SyncResult{}
+	result := &SyncResult{
+		NextCursor:         batch.NextCursor,
+		HasMore:            batch.HasMore,
+		Accounts:           len(batch.Accounts),
+		Transactions:       len(batch.Added),
+		ConnectionWarnings: batch.ConnectionWarnings,
+	}
 	result.Skipped = append(result.Skipped, batch.Skipped...)
 	result.Skipped = append(result.Skipped, ingestResult.Skipped...)
 	return result, nil

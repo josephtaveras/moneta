@@ -142,7 +142,7 @@ func ListProviderItems(
 	if err != nil {
 		return nil, fmt.Errorf("list provider items: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var items []ProviderItem
 	for rows.Next() {

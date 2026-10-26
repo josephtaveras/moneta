@@ -30,6 +30,11 @@ type TransactionRow struct {
 	Merchant    string
 	Status      string
 	AccountName string
+	Institution string
+	CategoryID  *int64
+	Transfer    bool
+	Excluded    bool
+	Manual      bool
 }
 
 // TransactionSummary holds pre-computed aggregates over every transaction
@@ -170,7 +175,7 @@ func ListTransactions(
 				ELSE transactions.merchant_raw
 			END,
 			transactions.status,
-			accounts.name
+			accounts.name, accounts.institution, transactions.category_id, transactions.is_transfer, transactions.excluded, transactions.classification_manual
 	` + transactionFilterWhere + `
 		ORDER BY transactions.date DESC, transactions.id DESC
 	`
@@ -195,7 +200,8 @@ func ListTransactions(
 			&transaction.AmountCents,
 			&transaction.Merchant,
 			&transaction.Status,
-			&transaction.AccountName,
+			&transaction.AccountName, &transaction.Institution,
+			&transaction.CategoryID, &transaction.Transfer, &transaction.Excluded, &transaction.Manual,
 		); err != nil {
 			return nil, fmt.Errorf("scan transaction: %w", err)
 		}

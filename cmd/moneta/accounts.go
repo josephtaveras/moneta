@@ -40,32 +40,32 @@ func runAccounts(ctx context.Context, args []string, stdout, stderr io.Writer) i
 		return 2
 	}
 	if flags.NArg() != 0 {
-		fmt.Fprintln(stderr, "error: accounts does not accept positional arguments")
+		_, _ = fmt.Fprintln(stderr, "error: accounts does not accept positional arguments")
 		return 2
 	}
 	if *limit < 1 {
-		fmt.Fprintln(stderr, "error: --limit must be at least 1")
+		_, _ = fmt.Fprintln(stderr, "error: --limit must be at least 1")
 		return 2
 	}
 	if *accountType != "" && !validCLAccountType(*accountType) {
-		fmt.Fprintf(stderr, "error: unknown account type %q\n", *accountType)
+		_, _ = fmt.Fprintf(stderr, "error: unknown account type %q\n", *accountType)
 		return 2
 	}
 	if *databasePath == "" {
-		fmt.Fprintln(stderr, "error: MONETA_DB_PATH or --db is required")
+		_, _ = fmt.Fprintln(stderr, "error: MONETA_DB_PATH or --db is required")
 		return 2
 	}
 
 	database, err := store.Open(ctx, *databasePath)
 	if err != nil {
-		fmt.Fprintf(stderr, "error: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 		return 1
 	}
 	defer func() { _ = database.Close() }()
 
 	accounts, err := store.ListAccountSummaries(ctx, database, *accountType)
 	if err != nil {
-		fmt.Fprintf(stderr, "error: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 		return 1
 	}
 
@@ -74,7 +74,7 @@ func runAccounts(ctx context.Context, args []string, stdout, stderr io.Writer) i
 		format = cli.FormatJSON
 	}
 	if err := cli.Render(stdout, buildAccountsDoc(accounts, *accountType, *limit, *full), format); err != nil {
-		fmt.Fprintf(stderr, "error: render accounts: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: render accounts: %v\n", err)
 		return 1
 	}
 	return 0

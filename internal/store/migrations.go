@@ -98,7 +98,7 @@ func applyMigration(ctx context.Context, db *sql.DB, migration migration) error 
 	if err != nil {
 		return fmt.Errorf("begin migration %q: %w", migration.name, err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	var applied bool
 	err = tx.QueryRowContext(ctx,

@@ -136,4 +136,12 @@ type SyncBatch struct {
 	Liabilities []Liability
 	NextCursor  string
 	Skipped     []SkippedRecord
+	// HasMore reports that the provider stopped short of the present to
+	// bound one call. Callers that want to catch up apply this batch and then
+	// sync again from NextCursor.
+	HasMore bool
+	// ConnectionWarnings counts distinct informational provider messages
+	// about connections that did not fail the batch, such as an institution
+	// that may be stale. Message text is never carried, only the count.
+	ConnectionWarnings int
 }

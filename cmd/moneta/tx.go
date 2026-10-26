@@ -44,6 +44,7 @@ func runTx(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	)
 	limit := flags.Int("limit", statusDefaultLimit, "maximum transaction rows to show")
 	full := flags.Bool("full", false, "show all matching rows, ignoring --limit")
+	review := flags.Bool("review", false, "show IDs and classifications for local correction")
 	asJSON := flags.Bool("json", false, "emit JSON instead of TOON")
 	if err := flags.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
@@ -52,33 +53,33 @@ func runTx(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 	if flags.NArg() != 0 {
-		fmt.Fprintln(stderr, "error: tx does not accept positional arguments")
+		_, _ = fmt.Fprintln(stderr, "error: tx does not accept positional arguments")
 		return 2
 	}
 	if *limit < 1 {
-		fmt.Fprintln(stderr, "error: --limit must be at least 1")
+		_, _ = fmt.Fprintln(stderr, "error: --limit must be at least 1")
 		return 2
 	}
 	if err := validateCLIDate("from", *from); err != nil {
-		fmt.Fprintf(stderr, "error: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 		return 2
 	}
 	if err := validateCLIDate("to", *to); err != nil {
-		fmt.Fprintf(stderr, "error: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 		return 2
 	}
 	if *from != "" && *to != "" && *from > *to {
-		fmt.Fprintln(stderr, "error: --from must not be after --to")
+		_, _ = fmt.Fprintln(stderr, "error: --from must not be after --to")
 		return 2
 	}
 	if *databasePath == "" {
-		fmt.Fprintln(stderr, "error: MONETA_DB_PATH or --db is required")
+		_, _ = fmt.Fprintln(stderr, "error: MONETA_DB_PATH or --db is required")
 		return 2
 	}
 
 	database, err := store.Open(ctx, *databasePath)
 	if err != nil {
-		fmt.Fprintf(stderr, "error: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 		return 1
 	}
 	defer func() { _ = database.Close() }()
@@ -89,18 +90,13 @@ func runTx(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		Account: *account,
 		Search:  *search,
 	}
-	summary, err := store.SummarizeTransactions(ctx, database, filter)
-	if err != nil {
-		fmt.Fprintf(stderr, "error: %v\n", err)
-		return 1
-	}
 	rowLimit := 0
 	if !*full {
 		rowLimit = *limit
 	}
 	transactions, err := store.ListTransactions(ctx, database, filter, rowLimit)
 	if err != nil {
-		fmt.Fprintf(stderr, "error: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 		return 1
 	}
 
@@ -108,9 +104,20 @@ func runTx(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	if *asJSON {
 		format = cli.FormatJSON
 	}
-	doc := buildTxDoc(summary, transactions, filter)
+	// The review document has no aggregate header, so it skips the summary query.
+	var doc toon.Object
+	if *review {
+		doc = buildTxReviewDoc(transactions)
+	} else {
+		summary, err := store.SummarizeTransactions(ctx, database, filter)
+		if err != nil {
+			_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
+			return 1
+		}
+		doc = buildTxDoc(summary, transactions, filter)
+	}
 	if err := cli.Render(stdout, doc, format); err != nil {
-		fmt.Fprintf(stderr, "error: render tx: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: render tx: %v\n", err)
 		return 1
 	}
 	return 0

@@ -47,26 +47,26 @@ func runSpend(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 		return 2
 	}
 	if flags.NArg() != 0 {
-		fmt.Fprintln(stderr, "error: spend does not accept positional arguments")
+		_, _ = fmt.Fprintln(stderr, "error: spend does not accept positional arguments")
 		return 2
 	}
 	if *limit < 1 {
-		fmt.Fprintln(stderr, "error: --limit must be at least 1")
+		_, _ = fmt.Fprintln(stderr, "error: --limit must be at least 1")
 		return 2
 	}
 	period, err := resolveReadPeriod(*periodValue, *from, *to, time.Now())
 	if err != nil {
-		fmt.Fprintf(stderr, "error: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 		return 2
 	}
 	if *databasePath == "" {
-		fmt.Fprintln(stderr, "error: MONETA_DB_PATH or --db is required")
+		_, _ = fmt.Fprintln(stderr, "error: MONETA_DB_PATH or --db is required")
 		return 2
 	}
 
 	database, err := store.Open(ctx, *databasePath)
 	if err != nil {
-		fmt.Fprintf(stderr, "error: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 		return 1
 	}
 	defer func() { _ = database.Close() }()
@@ -82,7 +82,7 @@ func runSpend(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 	}
 	report, err := store.ReadSpend(ctx, database, filter, rowLimit)
 	if err != nil {
-		fmt.Fprintf(stderr, "error: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 		return 1
 	}
 
@@ -91,7 +91,7 @@ func runSpend(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 		format = cli.FormatJSON
 	}
 	if err := cli.Render(stdout, buildSpendDoc(report, filter), format); err != nil {
-		fmt.Fprintf(stderr, "error: render spend: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: render spend: %v\n", err)
 		return 1
 	}
 	return 0

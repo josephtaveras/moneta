@@ -45,33 +45,33 @@ func runStatus(ctx context.Context, args []string, stdout, stderr io.Writer) int
 		return 2
 	}
 	if flags.NArg() != 0 {
-		fmt.Fprintln(stderr, "error: status does not accept positional arguments")
+		_, _ = fmt.Fprintln(stderr, "error: status does not accept positional arguments")
 		return 2
 	}
 	if *limit < 1 {
-		fmt.Fprintln(stderr, "error: --limit must be at least 1")
+		_, _ = fmt.Fprintln(stderr, "error: --limit must be at least 1")
 		return 2
 	}
 	if *databasePath == "" {
-		fmt.Fprintln(stderr, "error: MONETA_DB_PATH or --db is required")
+		_, _ = fmt.Fprintln(stderr, "error: MONETA_DB_PATH or --db is required")
 		return 2
 	}
 
 	database, err := store.Open(ctx, *databasePath)
 	if err != nil {
-		fmt.Fprintf(stderr, "error: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 		return 1
 	}
 	defer func() { _ = database.Close() }()
 
 	items, err := store.ListProviderItemStatuses(ctx, database)
 	if err != nil {
-		fmt.Fprintf(stderr, "error: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 		return 1
 	}
 	detector, err := store.ReadDetectorState(ctx, database)
 	if err != nil {
-		fmt.Fprintf(stderr, "error: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 		return 1
 	}
 
@@ -82,7 +82,7 @@ func runStatus(ctx context.Context, args []string, stdout, stderr io.Writer) int
 	if err := cli.Render(
 		stdout, buildStatusDoc(items, detector, *limit, *full), format,
 	); err != nil {
-		fmt.Fprintf(stderr, "error: render status: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: render status: %v\n", err)
 		return 1
 	}
 

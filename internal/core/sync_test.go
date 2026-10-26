@@ -347,6 +347,10 @@ func TestSyncProviderItemZeroizesPlaintextOnSuccessAndFailures(t *testing.T) {
 			if test.wantAnyErr && err == nil {
 				t.Error("sync succeeded, want an error")
 			}
+			// Only the provider's own Sync failure is marked as a provider error.
+			if errors.Is(err, ErrProviderSync) != (test.syncErr != nil) {
+				t.Errorf("sync error = %v, ErrProviderSync match wrong", err)
+			}
 			if test.wantErr == nil && !test.wantAnyErr && err != nil {
 				t.Errorf("sync error = %v, want nil", err)
 			}
@@ -379,7 +383,9 @@ func TestSyncProviderItemSurfacesProviderAndIngestSkips(t *testing.T) {
 			Reason: canon.SkipUnsupportedCurrency,
 			Detail: "EUR",
 		}},
-		NextCursor: "cursor-1",
+		NextCursor:         "cursor-1",
+		HasMore:            true,
+		ConnectionWarnings: 3,
 	}}
 
 	result, err := SyncProviderItem(
@@ -398,6 +404,10 @@ func TestSyncProviderItemSurfacesProviderAndIngestSkips(t *testing.T) {
 	}
 	if result == nil || len(result.Skipped) != 2 {
 		t.Fatalf("SyncProviderItem() skipped = %#v, want two records", result)
+	}
+	if result.NextCursor != "cursor-1" || !result.HasMore || result.Accounts != 1 ||
+		result.Transactions != 0 || result.ConnectionWarnings != 3 {
+		t.Errorf("SyncProviderItem() result = %#v, want batch cursor, continuation, and counts", result)
 	}
 	providerSkip := result.Skipped[0]
 	if providerSkip.Kind != canon.RecordKindTransaction ||
