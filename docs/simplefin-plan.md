@@ -42,7 +42,8 @@ Start with posted transactions only and preserve all historical rows when they d
 Initial sync retrieves up to 90 days in two requests of at most 45 days; subsequent sync resumes from the successful checkpoint with five days of overlap.
 Live Bridge responses warn above 45 days despite the published guide allowing 90-day requests.
 All windows must validate before the batch and checkpoint commit together.
-Long gaps are caught up in one invocation by committing bounded 90-day passes in order, up to 10 passes; a longer gap keeps that progress and asks for another run.
+Long gaps are caught up in one invocation by committing bounded 90-day passes in order, up to 10 passes; a longer gap keeps that progress and asks for another run the next day, after the daily request budget resets.
+Each pass reports its own counts and connection warnings as it commits.
 An explicit reset replays the latest 90 days; it is not a promise of full institution history.
 Use provider balance timestamps, not fetch time, for balance snapshot dates.
 Require explicit account types and sign multipliers, including an explicit ignore choice for accounts outside scope.
@@ -51,11 +52,14 @@ Use integer decimal parsing and preserve missing optional amounts as null.
 An amount with fractional cents skips only its own transaction or balance record and is counted as skipped.
 Reject incomplete account sets atomically, including HTTP 200 responses with structured `errlist` errors.
 Legacy `errors` entries are informational connection messages; sync counts them as warnings and never prints their text.
+A sync with warnings still advances the checkpoint, and each import run records its warning count.
+Later syncs start their overlap from the last checkpoint committed without warnings, at most 90 days before the stored checkpoint, so rows a recovered institution adds late import without a reset.
 No automatic retry loop consumes request quota.
 Keep credential-bearing URLs and raw provider errors out of logs.
 Local category, transfer, and exclusion overrides take precedence over provider values.
 Do not automatically match transfers by equal amounts; users explicitly confirm both legs.
 SimpleFIN recurring detection stays paused until the classification and history quality have been validated.
+Migration 000007 resets detector state left by earlier Plaid detection to `never_run`, so stale detected rows stay hidden.
 
 ## Validation Gate
 

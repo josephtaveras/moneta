@@ -38,10 +38,10 @@ type SyncResult struct {
 
 // SyncProviderItem decrypts one stored credential, builds its provider, pulls
 // from pullCursor, bootstraps the Phase 1 entity, and atomically applies the
-// returned batch against expectedStoredCursor. Callers may pass an empty pull
-// cursor with the loaded database cursor as the expectation for a safe history
-// replay without clearing the checkpoint. Decrypted credential bytes are
-// cleared before return.
+// returned batch against expectedStoredCursor. Callers may pass an empty or
+// earlier pull cursor with the loaded database cursor as the expectation to
+// replay history without clearing the checkpoint. Decrypted credential bytes
+// are cleared before return.
 func SyncProviderItem(
 	ctx context.Context,
 	db *sql.DB,

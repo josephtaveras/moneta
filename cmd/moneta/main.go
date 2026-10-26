@@ -9,6 +9,9 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+
+	// Embedded zone data keeps MONETA_TIMEZONE valid on hosts without system tzdata.
+	_ "time/tzdata"
 )
 
 const (

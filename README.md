@@ -14,6 +14,7 @@ Synthetic HTTPS integration tests and live statement checks cover the workflow.
 Missing statement coverage and unreviewed classifications remain explicit limitations; additional statements are optional.
 Existing CLI/REST reads and Phase 3-4 analytics are retained, with feature expansion frozen until core reports reconcile.
 SimpleFIN sync leaves recurring detection paused, so inferred bills are unavailable until the data-quality gate is cleared.
+Upgrading resets detector state left by earlier Plaid detection to `never_run`, so stale detected rows stay hidden in bills, recurring, and the dashboard.
 See the active [scope and acceptance checklist](docs/simplefin-plan.md) and [product spec](docs/product-spec.md).
 
 ## Principles
@@ -98,9 +99,11 @@ Do not import the same real accounts through both Plaid and SimpleFIN into one d
 
 Initial sync requests the latest 90 days in two requests of at most 45 days, subject to institution history availability.
 Subsequent sync overlaps the previous checkpoint by five days and retrieves at most 90 days per pass, with each request limited to 45 days.
-After a long outage, one sync invocation commits one pass at a time and continues from each committed checkpoint until it is caught up, then prints cumulative counts.
+After a long outage, one sync invocation commits one pass at a time and continues from each committed checkpoint until it is caught up.
+Each pass prints its own line on stdout as it commits, with its account, posted record, skipped, and connection warning counts and its new checkpoint.
 One invocation runs at most 10 passes (at most 20 requests, about 850 days of catch-up) to stay within Bridge's daily request guidance.
-If the checkpoint is still behind after that, the committed passes are kept, sync exits 1, and you run sync again to continue.
+If the checkpoint is still behind after that, the committed passes are kept and sync exits 1.
+Run sync again the next day, after the daily request budget resets, rather than immediately.
 There are no automatic retries.
 `sync --reset-cursor` replays the latest 90 days while preserving the stored checkpoint until commit; it is not an all-history backfill.
 Only posted transactions are imported, and missing rows in a response never trigger deletion.
@@ -111,10 +114,17 @@ Set `MONETA_TIMEZONE` to an IANA zone name such as `America/New_York` to use tha
 Choose the zone once before the first sync.
 Changing it after history exists shifts the dates of overlapping rows on their next re-import, while older rows keep their original dates.
 SimpleFIN errors, incomplete responses, malformed transaction identities or timestamps, and unconfigured accounts fail the import without advancing its checkpoint.
-A transaction or balance amount with fractional cents (or another invalid amount) is skipped on its own and counted in the skipped total; the rest of the import continues.
+A transaction or balance amount with fractional cents (or another invalid amount) is skipped on its own and counted in its pass's skipped count; the rest of the import continues.
 An invalid available balance is dropped on its own and recorded as skipped while the account's current balance still imports.
+When the two requests of one pass disagree about a row, the later request's result wins, so a row is never both imported and skipped.
 Informational Bridge connection messages do not fail the sync.
-Sync instead prints a count of connection warnings to stderr, because some institutions may be stale; check the Bridge connection page for details.
+Sync instead prints each pass's count of connection warnings to stderr, because some institutions may be stale; check the Bridge connection page for details.
+The checkpoint still advances, and each import run records its warning count.
+A stale institution can add older rows after it recovers, so later syncs start their five-day overlap from the last checkpoint committed without warnings instead of the stored checkpoint.
+Those late rows then import automatically, without `--reset-cursor`.
+That lookback reaches at most 90 days before the stored checkpoint, so an institution that keeps warning does not grow every request.
+A lookback longer than one pass is committed in passes like any other catch-up.
+Syncs recorded before warning counts were tracked count as warning-free.
 A failed Bridge request sets connection health to `error` or `login_required`; a successful sync or account discovery restores `ok`.
 Local failures such as unconfigured accounts, an invalid checkpoint, a concurrent sync, or database errors leave connection health unchanged.
 Inspect the Bridge connection page for provider error details; raw responses, Bridge message text, and credential-bearing URLs are never printed.

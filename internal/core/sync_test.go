@@ -430,6 +430,16 @@ func TestSyncProviderItemSurfacesProviderAndIngestSkips(t *testing.T) {
 	if cursor != "cursor-1" {
 		t.Errorf("provider Item cursor = %q, want cursor-1", cursor)
 	}
+	var warnings int
+	if err := db.QueryRow(
+		"SELECT connection_warnings FROM import_runs WHERE provider_item_id = ?",
+		item.DatabaseID,
+	).Scan(&warnings); err != nil {
+		t.Fatalf("read import run connection warnings: %v", err)
+	}
+	if warnings != 3 {
+		t.Errorf("import run connection_warnings = %d, want 3", warnings)
+	}
 }
 
 func newSyncTestItem(t *testing.T) (*sql.DB, *secret.Cipher, store.ProviderItem) {

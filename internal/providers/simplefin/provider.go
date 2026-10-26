@@ -289,6 +289,8 @@ func (p *Provider) Discover(ctx context.Context) ([]DiscoveredAccount, error) {
 // When an old checkpoint needs more than 90 days, the batch stops early with
 // HasMore set; callers apply it and sync again from NextCursor.
 // All windows must succeed before any batch or checkpoint is returned.
+// When windows disagree about a record, the later window's outcome wins,
+// whether it imports or skips that record.
 // Missing transactions never imply deletions; pending rows are ignored.
 func (p *Provider) Sync(ctx context.Context, cursor string) (*canon.SyncBatch, error) {
 	end := p.now().UTC().Truncate(time.Second)
@@ -306,14 +308,9 @@ func (p *Provider) Sync(ctx context.Context, cursor string) (*canon.SyncBatch, e
 		}
 	}
 	batch := &canon.SyncBatch{NextCursor: end.Format(time.RFC3339), HasMore: capped}
-	type skipKey struct {
-		kind canon.RecordKind
-		id   string
-	}
 	accountAt := map[string]int{}
-	balanceAt := map[string]int{}
-	transactionAt := map[string]int{}
-	skipped := map[skipKey]bool{}
+	merged := map[recordKey]*recordOutcome{}
+	var order []recordKey
 	warnings := map[string]bool{}
 	for start.Before(end) {
 		windowEnd := start.Add(45 * 24 * time.Hour)
@@ -339,34 +336,78 @@ func (p *Provider) Sync(ctx context.Context, cursor string) (*canon.SyncBatch, e
 				batch.Accounts = append(batch.Accounts, account)
 			}
 		}
-		for _, balance := range window.Balances {
-			if index, exists := balanceAt[balance.AccountRef]; exists {
-				if balance.Date >= batch.Balances[index].Date {
-					batch.Balances[index] = balance
-				}
-			} else {
-				balanceAt[balance.AccountRef] = len(batch.Balances)
-				batch.Balances = append(batch.Balances, balance)
+		outcomes, keys := windowOutcomes(window)
+		for _, key := range keys {
+			next := outcomes[key]
+			previous, exists := merged[key]
+			if !exists {
+				order = append(order, key)
+			} else if previous.balance != nil && next.balance != nil && next.balance.Date < previous.balance.Date {
+				// A valid balance never replaces one with a newer balance date.
+				continue
 			}
-		}
-		for _, transaction := range window.Added {
-			if index, exists := transactionAt[transaction.ProviderTxnID]; exists {
-				batch.Added[index] = transaction
-			} else {
-				transactionAt[transaction.ProviderTxnID] = len(batch.Added)
-				batch.Added = append(batch.Added, transaction)
-			}
-		}
-		for _, record := range window.Skipped {
-			if key := (skipKey{record.Kind, record.ID}); !skipped[key] {
-				skipped[key] = true
-				batch.Skipped = append(batch.Skipped, record)
-			}
+			merged[key] = next
 		}
 		start = windowEnd
 	}
+	for _, key := range order {
+		outcome := merged[key]
+		if outcome.transaction != nil {
+			batch.Added = append(batch.Added, *outcome.transaction)
+		}
+		if outcome.balance != nil {
+			batch.Balances = append(batch.Balances, *outcome.balance)
+		}
+		batch.Skipped = append(batch.Skipped, outcome.skipped...)
+	}
 	batch.ConnectionWarnings = len(warnings)
 	return batch, nil
+}
+
+// recordKey identifies one provider record across request windows: a
+// transaction by its scoped ID, or an account's balance by its account ID.
+type recordKey struct {
+	kind canon.RecordKind
+	id   string
+}
+
+// recordOutcome is what one request window did with one record: imported it,
+// skipped it, or imported a balance while skipping only its available value.
+type recordOutcome struct {
+	transaction *canon.Transaction
+	balance     *canon.Balance
+	skipped     []canon.SkippedRecord
+}
+
+// windowOutcomes groups one window's imported and skipped records by record
+// identity. Sync lets a later window's outcome replace an earlier window's
+// outcome as a whole, so a record is never both imported and reported
+// skipped, and a current-balance skip and an available-balance skip stay
+// distinct.
+func windowOutcomes(window *canon.SyncBatch) (map[recordKey]*recordOutcome, []recordKey) {
+	outcomes := map[recordKey]*recordOutcome{}
+	var keys []recordKey
+	outcome := func(kind canon.RecordKind, id string) *recordOutcome {
+		key := recordKey{kind, id}
+		if existing, ok := outcomes[key]; ok {
+			return existing
+		}
+		created := &recordOutcome{}
+		outcomes[key] = created
+		keys = append(keys, key)
+		return created
+	}
+	for i := range window.Balances {
+		outcome(canon.RecordKindBalance, window.Balances[i].AccountRef).balance = &window.Balances[i]
+	}
+	for i := range window.Added {
+		outcome(canon.RecordKindTransaction, window.Added[i].ProviderTxnID).transaction = &window.Added[i]
+	}
+	for _, record := range window.Skipped {
+		skipped := outcome(record.Kind, record.ID)
+		skipped.skipped = append(skipped.skipped, record)
+	}
+	return outcomes, keys
 }
 
 func (p *Provider) normalize(data accountSet) (*canon.SyncBatch, error) {

@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -198,4 +199,31 @@ func GetProviderItem(
 		return ProviderItem{}, fmt.Errorf("get provider item: %w", err)
 	}
 	return item, nil
+}
+
+// LastCleanSyncCursor returns the checkpoint committed by the most recent
+// succeeded import run of one provider Item that carried no connection
+// warnings, or "" when there is none. Runs recorded before warnings were
+// tracked count as warning-free.
+func LastCleanSyncCursor(ctx context.Context, db *sql.DB, providerItemID int64) (string, error) {
+	if db == nil {
+		return "", fmt.Errorf("database is required")
+	}
+	var cursor string
+	err := db.QueryRowContext(ctx, `
+		SELECT cursor_after
+		FROM import_runs
+		WHERE provider_item_id = ?
+		  AND status = 'succeeded'
+		  AND connection_warnings = 0
+		ORDER BY id DESC
+		LIMIT 1
+	`, providerItemID).Scan(&cursor)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("read last warning-free sync checkpoint: %w", err)
+	}
+	return cursor, nil
 }

@@ -26,6 +26,9 @@ const (
 	// simplefinMaxPasses bounds one sync invocation to at most 20 Bridge
 	// requests (two per pass), under the guide's 24 requests per day.
 	simplefinMaxPasses = 10
+	// simplefinLookbackLimit bounds how far before the stored checkpoint a
+	// sync reaches back after connection warnings.
+	simplefinLookbackLimit = 90 * 24 * time.Hour
 )
 
 // validItemName rejects a blank --item as a usage error, so every SimpleFIN
@@ -172,22 +175,54 @@ func simplefinFailure(ctx context.Context, db *sql.DB, item store.ProviderItem, 
 	return commandError(stderr, err)
 }
 
+// simplefinPullCursor returns the cursor a sync pulls from. Connection
+// warnings do not stop the checkpoint from advancing, but a warning
+// institution can add rows late, behind it. So a sync pulls from the last
+// checkpoint committed without warnings when that is earlier than the stored
+// checkpoint, or from simplefinLookbackLimit before the stored checkpoint when
+// there is no such checkpoint or it is older than that.
+func simplefinPullCursor(stored, clean string) string {
+	checkpoint, err := time.Parse(time.RFC3339, stored)
+	if err != nil {
+		// An empty checkpoint is a first sync; the provider rejects an
+		// invalid one as a local configuration problem.
+		return stored
+	}
+	pull := checkpoint.Add(-simplefinLookbackLimit)
+	if cleanAt, err := time.Parse(time.RFC3339, clean); err == nil && cleanAt.After(pull) {
+		pull = cleanAt
+	}
+	if !pull.Before(checkpoint) {
+		return stored
+	}
+	return pull.UTC().Format(time.RFC3339)
+}
+
 // syncSimpleFIN commits one batch per pass through core.SyncProviderItem and
 // continues from each committed checkpoint until the provider is caught up.
+// Each pass reports its own counts and warnings as soon as it commits.
 func syncSimpleFIN(ctx context.Context, path, name string, reset bool, location *time.Location, stdout, stderr io.Writer) int {
 	connection, err := openSimpleFIN(ctx, path, name, location)
 	if err != nil {
 		return commandError(stderr, err)
 	}
 	defer func() { _ = connection.db.Close() }()
-	// Reset pulls the latest 90 days but keeps the stored checkpoint as the
-	// compare-and-swap expectation until the replay commits.
-	pull, expected := connection.item.SyncCursor, connection.item.SyncCursor
-	if reset {
-		pull = ""
+	// The stored checkpoint stays the compare-and-swap expectation even when
+	// the first pass pulls from an earlier cursor. Reset pulls the latest 90
+	// days.
+	expected := connection.item.SyncCursor
+	pull := ""
+	if !reset {
+		clean, err := store.LastCleanSyncCursor(ctx, connection.db, connection.item.DatabaseID)
+		if err != nil {
+			return commandError(stderr, err)
+		}
+		pull = simplefinPullCursor(expected, clean)
+		if pull != expected {
+			_, _ = fmt.Fprintf(stdout, "Rechecking from %s because syncs since then reported connection warnings.\n", pull)
+		}
 	}
-	var accounts, received, skipped, warnings, passes int
-	behind := false
+	passes := 0
 	for {
 		result, err := core.SyncProviderItem(ctx, connection.db, connection.cipher, connection.item, pull, expected, connection.buildProvider)
 		if err != nil {
@@ -197,29 +232,21 @@ func syncSimpleFIN(ctx context.Context, path, name string, reset bool, location 
 			return simplefinFailure(ctx, connection.db, connection.item, err, errors.Is(err, core.ErrProviderSync), stderr)
 		}
 		passes++
-		accounts = result.Accounts
-		received += result.Transactions
-		skipped += len(result.Skipped)
-		warnings = max(warnings, result.ConnectionWarnings)
+		_, _ = fmt.Fprintf(stdout, "SimpleFIN pass %d: %d accounts, %d posted records received, %d skipped, %d connection warnings. Checkpoint %s.\n", passes, result.Accounts, result.Transactions, len(result.Skipped), result.ConnectionWarnings, result.NextCursor)
+		if result.ConnectionWarnings > 0 {
+			_, _ = fmt.Fprintf(stderr, "warning: SimpleFIN pass %d reported %d connection warning(s); some institutions may be stale; check the Bridge connection page; later syncs automatically reach back to the last warning-free sync, up to 90 days, to pick up late rows\n", passes, result.ConnectionWarnings)
+		}
 		pull, expected = result.NextCursor, result.NextCursor
 		if !result.HasMore {
 			break
 		}
 		if passes == simplefinMaxPasses {
-			behind = true
-			break
+			_, _ = fmt.Fprintf(stderr, "error: checkpoint is still behind after %d passes; progress through checkpoint %s is kept; run moneta sync again tomorrow, after the Bridge daily request budget resets\n", passes, expected)
+			return 1
 		}
 	}
-	if warnings > 0 {
-		_, _ = fmt.Fprintf(stderr, "warning: SimpleFIN reported %d connection warning(s); some institutions may be stale; check the Bridge connection page\n", warnings)
-	}
-	_, _ = fmt.Fprintf(stdout, "SimpleFIN synced: %d accounts, %d posted records received, %d skipped. Checkpoint %s.\n", accounts, received, skipped, expected)
 	if passes > 1 {
 		_, _ = fmt.Fprintf(stdout, "Caught up from an older checkpoint in %d passes.\n", passes)
-	}
-	if behind {
-		_, _ = fmt.Fprintf(stderr, "error: checkpoint is still behind after %d passes; run moneta sync again to continue\n", passes)
-		return 1
 	}
 	_, _ = fmt.Fprintln(stdout, "Review transfers with moneta tx --review. Advanced detection is paused until reconciliation.")
 	return 0

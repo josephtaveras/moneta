@@ -244,3 +244,66 @@ func TestSetProviderItemStatus(t *testing.T) {
 		t.Error("SetProviderItemStatus(nil db) succeeded, want an error")
 	}
 }
+
+func TestLastCleanSyncCursor(t *testing.T) {
+	ctx := context.Background()
+	db := openTestDB(t)
+	itemID, err := SaveProviderItem(ctx, db, ProviderItemSecret{
+		Provider:              "simplefin",
+		ItemID:                "default",
+		AccessTokenCiphertext: []byte("placeholder-ciphertext"),
+	})
+	if err != nil {
+		t.Fatalf("save provider item: %v", err)
+	}
+	otherID, err := SaveProviderItem(ctx, db, ProviderItemSecret{
+		Provider:              "simplefin",
+		ItemID:                "other",
+		AccessTokenCiphertext: []byte("placeholder-ciphertext"),
+	})
+	if err != nil {
+		t.Fatalf("save other provider item: %v", err)
+	}
+	cursor, err := LastCleanSyncCursor(ctx, db, itemID)
+	if err != nil || cursor != "" {
+		t.Fatalf("LastCleanSyncCursor() without runs = %q, %v; want empty", cursor, err)
+	}
+	for _, run := range []struct {
+		item     int64
+		status   string
+		after    string
+		warnings int
+	}{
+		{itemID, "succeeded", "2026-01-01T00:00:00Z", 0},
+		{itemID, "succeeded", "2026-01-02T00:00:00Z", 0},
+		{itemID, "succeeded", "2026-01-03T00:00:00Z", 2},
+		{itemID, "failed", "2026-01-04T00:00:00Z", 0},
+		{itemID, "succeeded", "2026-01-05T00:00:00Z", 1},
+		{otherID, "succeeded", "2026-01-06T00:00:00Z", 0},
+	} {
+		if _, err := db.ExecContext(ctx, `
+			INSERT INTO import_runs (provider, provider_item_id, status, cursor_after, connection_warnings)
+			VALUES ('simplefin', ?, ?, ?, ?)
+		`, run.item, run.status, run.after, run.warnings); err != nil {
+			t.Fatalf("insert import run: %v", err)
+		}
+	}
+	// Later warning runs, failed runs, and other Items do not count.
+	cursor, err = LastCleanSyncCursor(ctx, db, itemID)
+	if err != nil || cursor != "2026-01-02T00:00:00Z" {
+		t.Errorf("LastCleanSyncCursor() = %q, %v; want 2026-01-02T00:00:00Z", cursor, err)
+	}
+	if _, err := db.ExecContext(ctx, `
+		INSERT INTO import_runs (provider, provider_item_id, status, cursor_after)
+		VALUES ('simplefin', ?, 'succeeded', '2026-01-07T00:00:00Z')
+	`, itemID); err != nil {
+		t.Fatalf("insert warning-free import run: %v", err)
+	}
+	cursor, err = LastCleanSyncCursor(ctx, db, itemID)
+	if err != nil || cursor != "2026-01-07T00:00:00Z" {
+		t.Errorf("LastCleanSyncCursor() after recovery = %q, %v; want 2026-01-07T00:00:00Z", cursor, err)
+	}
+	if _, err := LastCleanSyncCursor(ctx, nil, itemID); err == nil {
+		t.Error("LastCleanSyncCursor(nil db) succeeded, want an error")
+	}
+}

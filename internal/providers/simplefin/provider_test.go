@@ -357,3 +357,94 @@ func TestSyncChunksInitialHistoryAndDiscardsPartialResult(t *testing.T) {
 		})
 	}
 }
+
+// The two request windows of one sync can disagree about the same record when
+// Bridge revises it between requests. The later window's outcome wins
+// whether it imports or skips the record, so no record is both imported and
+// reported skipped, and a current-balance skip never hides an
+// available-balance skip.
+func TestSyncLaterWindowWinsForImportedAndSkippedRecords(t *testing.T) {
+	now := time.Date(2026, 9, 22, 12, 0, 0, 0, time.UTC)
+	account := ScopedID("default", "bank", "a")
+	transaction := ScopedID(account, "one")
+	available := int64(500)
+	for _, tc := range []struct {
+		name     string
+		windows  [2]string
+		added    []int64
+		balances []canon.Balance
+		skipped  []canon.SkippedRecord
+	}{
+		{
+			name:     "transaction skipped then imported",
+			windows:  [2]string{`"balance":"20.00","transactions":[{"id":"one","posted":%d,"amount":"-1.005"}]`, `"balance":"20.00","transactions":[{"id":"one","posted":%d,"amount":"-1.00"}]`},
+			added:    []int64{-100},
+			balances: []canon.Balance{{AccountRef: account, Date: "2026-09-22", CurrentCents: 2000}},
+		},
+		{
+			name:     "transaction imported then skipped",
+			windows:  [2]string{`"balance":"20.00","transactions":[{"id":"one","posted":%d,"amount":"-1.00"}]`, `"balance":"20.00","transactions":[{"id":"one","posted":%d,"amount":"-1.005"}]`},
+			balances: []canon.Balance{{AccountRef: account, Date: "2026-09-22", CurrentCents: 2000}},
+			skipped:  []canon.SkippedRecord{{Kind: canon.RecordKindTransaction, ID: transaction, Reason: canon.SkipMalformedRecord, Detail: "fractional_cents"}},
+		},
+		{
+			name:     "current balance skipped then available balance skipped",
+			windows:  [2]string{`"balance":"20.001","available-balance":"5.00","transactions":[{"id":"one","posted":%d,"amount":"-1.00"}]`, `"balance":"20.00","available-balance":"5.001","transactions":[{"id":"one","posted":%d,"amount":"-1.00"}]`},
+			added:    []int64{-100},
+			balances: []canon.Balance{{AccountRef: account, Date: "2026-09-22", CurrentCents: 2000}},
+			skipped:  []canon.SkippedRecord{{Kind: canon.RecordKindBalance, ID: account, Reason: canon.SkipMalformedRecord, Detail: "available_fractional_cents"}},
+		},
+		{
+			name:    "available balance skipped then current balance skipped",
+			windows: [2]string{`"balance":"20.00","available-balance":"5.001","transactions":[{"id":"one","posted":%d,"amount":"-1.00"}]`, `"balance":"20.001","available-balance":"5.00","transactions":[{"id":"one","posted":%d,"amount":"-1.00"}]`},
+			added:   []int64{-100},
+			skipped: []canon.SkippedRecord{{Kind: canon.RecordKindBalance, ID: account, Reason: canon.SkipMalformedRecord, Detail: "fractional_cents"}},
+		},
+		{
+			name:     "balance skipped then imported with available balance",
+			windows:  [2]string{`"balance":"20.001","available-balance":"5.00","transactions":[]`, `"balance":"20.00","available-balance":"5.00","transactions":[]`},
+			balances: []canon.Balance{{AccountRef: account, Date: "2026-09-22", CurrentCents: 2000, AvailableCents: &available}},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			requests := 0
+			server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				window := strings.ReplaceAll(tc.windows[min(requests, 1)], "%d", strconv.FormatInt(now.Unix()-1, 10))
+				requests++
+				_, _ = fmt.Fprintf(w, `{"accounts":[{"conn_id":"bank","id":"a","name":"Checking","currency":"USD","balance-date":%d,%s}]}`, now.Unix(), window)
+			}))
+			defer server.Close()
+			p, _ := New(strings.Replace(server.URL, "https://", "https://user:secret@", 1), "default", map[string]AccountConfig{account: {Type: canon.AccountTypeChecking, BalanceSign: 1}})
+			p.client = server.Client()
+			p.now = func() time.Time { return now }
+			batch, err := p.Sync(context.Background(), "")
+			if err != nil || requests != 2 {
+				t.Fatalf("requests=%d error=%v", requests, err)
+			}
+			var added []int64
+			for _, row := range batch.Added {
+				if row.ProviderTxnID != transaction {
+					t.Fatalf("unexpected transaction %s", row.ProviderTxnID)
+				}
+				added = append(added, row.AmountCents)
+			}
+			if fmt.Sprint(added) != fmt.Sprint(tc.added) {
+				t.Errorf("added amounts = %v, want %v", added, tc.added)
+			}
+			if len(batch.Balances) != len(tc.balances) {
+				t.Fatalf("balances = %#v, want %#v", batch.Balances, tc.balances)
+			}
+			for i, want := range tc.balances {
+				got := batch.Balances[i]
+				if got.AccountRef != want.AccountRef || got.Date != want.Date || got.CurrentCents != want.CurrentCents ||
+					(got.AvailableCents == nil) != (want.AvailableCents == nil) ||
+					(got.AvailableCents != nil && *got.AvailableCents != *want.AvailableCents) {
+					t.Errorf("balance[%d] = %#v, want %#v", i, got, want)
+				}
+			}
+			if fmt.Sprint(batch.Skipped) != fmt.Sprint(tc.skipped) {
+				t.Errorf("skipped = %v, want %v", batch.Skipped, tc.skipped)
+			}
+		})
+	}
+}
