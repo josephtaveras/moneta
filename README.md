@@ -7,15 +7,15 @@ A small localhost REST API mirrors the same operations for non-CLI consumers.
 
 ## Status
 
-Pre-alpha: SimpleFIN cutover is implemented and validated against representative statement periods.
+Pre-alpha: the SimpleFIN cutover is complete, and core reports reconcile against representative statement periods.
 `moneta link` and `moneta sync` use SimpleFIN only; the Plaid adapter and SDK have been removed.
 The SimpleFIN path includes encrypted setup-token exchange, explicit account configuration, posted-only overlapping sync, and durable local transaction corrections.
 Synthetic HTTPS integration tests and live statement checks cover the workflow.
 Missing statement coverage and unreviewed classifications remain explicit limitations; additional statements are optional.
-Existing CLI/REST reads and Phase 3-4 analytics are retained, with feature expansion frozen until core reports reconcile.
-SimpleFIN sync leaves recurring detection paused, so inferred bills are unavailable until the data-quality gate is cleared.
+Existing CLI/REST reads and Phase 3-4 analytics are retained; new features wait for an explicitly authorized milestone.
+SimpleFIN sync leaves recurring detection paused, so inferred bills stay unavailable until the unresolved classifications are reviewed.
 Upgrading resets detector state left by earlier Plaid detection to `never_run`, so stale detected rows stay hidden in bills, recurring, and the dashboard.
-See the active [scope and acceptance checklist](docs/simplefin-plan.md) and [product spec](docs/product-spec.md).
+See the [SimpleFIN cutover record](docs/simplefin-plan.md) and the [product spec](docs/product-spec.md).
 
 ## Principles
 
@@ -26,14 +26,16 @@ See the active [scope and acceptance checklist](docs/simplefin-plan.md) and [pro
 - Pluggable providers: no provider-specific fields leak into the core model; imports are idempotent with transaction-level dedup.
 - Single static Go binary, CGO-free, minimal dependencies, no telemetry.
 
-## Current build scope
+## Scope
+
+The SimpleFIN cutover delivered:
 
 1. Connect SimpleFIN and confirm account types and balance signs.
 2. Import posted data with stable identities and conservative failure handling.
 3. Correct transfers and categories locally without losing changes on re-import.
 4. Reconcile representative statement periods and document remaining coverage and classification limits.
 
-New analytics, UI, provider infrastructure, and multi-entity routing are deferred.
+New analytics, UI, provider infrastructure, and multi-entity routing are deferred; each needs an authorized milestone.
 The earlier feature phases are a historical implementation record, not a financial correctness guarantee.
 
 ## Development context
@@ -47,8 +49,7 @@ Run the current schema and canonical-contract checks with:
 go test ./...
 ```
 
-CI runs on pull requests and pushes to `main`: build, vet, tests, CGO-free tests, and race tests.
-CI runs build, vet, formatting, tests, CGO-free tests, race checks, and benchmark smoke checks.
+CI runs on pull requests and pushes to `main`: build, vet, formatting, tests, CGO-free tests, race checks, and benchmark smoke checks.
 
 ## SimpleFIN setup
 
@@ -58,7 +59,7 @@ Run this from the repository root in your own terminal:
 ./scripts/connect-simplefin.sh
 ```
 
-The script builds `.local/moneta`, creates a private `.local/simplefin.env` key/config file, and uses a separate `.local/simplefin.db` so existing Plaid data is not double-counted.
+The script builds `.local/moneta`, creates a private `.local/simplefin.env` key/config file, and uses a separate `.local/simplefin.db`, which keeps it apart from any database created by earlier Plaid-based versions.
 It asks for your setup token through a hidden terminal prompt, passes it through `SIMPLEFIN_SETUP_TOKEN`, claims it once, and stores the resulting Access URL encrypted in SQLite.
 The setup token is neither saved nor printed.
 Existing linked credentials and encryption keys are reused on subsequent runs.
@@ -155,7 +156,7 @@ Moneta does not guess counterparties from matching amounts.
 `--transfer false` removes transfer classification without changing exclusion; use `--excluded false` to include the row again.
 `--excluded true|false` controls analytics inclusion; a transfer cannot be included.
 Each correction preserves the entire effective classification against re-import, while provider amounts, dates, and descriptions can still update.
-Edit the correction again to change it; there is no automatic return-to-provider classification command in this milestone.
+Edit the correction again to change it; there is no automatic return-to-provider classification command.
 Category edits use the category's transfer/ignore semantics unless explicitly overridden.
 Corrections do not run recurring detection, which stays paused for SimpleFIN data.
 Core reports are only as accurate as account mapping and transfer review; uncategorized card payments otherwise inflate spending.
@@ -168,7 +169,7 @@ The removed Link server's `link --listen` flag is no longer accepted.
 Use a separate SimpleFIN database for overlapping accounts to avoid double-counting historical Plaid data.
 No automatic cross-provider account merge is performed.
 
-## Status
+## Connection status
 
 After linking and syncing, inspect connection health with the same environment (`MONETA_DB_PATH`, or `--db`):
 
@@ -192,7 +193,7 @@ go run ./cmd/moneta accounts [--type credit_card] [--json] [--limit N | --full]
 `moneta accounts` prints the plan's four-field schema (name, type, balance, status) as a TOON table, with a summary block of total/active/per-type counts.
 Balance is the latest synced snapshot in dollars, `null` when the account has none yet.
 `--type` filters to one canonical type (`checking`, `savings`, `credit_card`, `loan`, `investment`, `asset`).
-`--entity` is deferred: Phase 1 is single-entity, so it would be a no-op today.
+`--entity` is deferred: Moneta is single-entity today, so it would be a no-op.
 Exit codes: 0 ok, 1 error, 2 usage.
 
 ## Transactions

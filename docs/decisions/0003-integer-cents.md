@@ -17,5 +17,5 @@ Convert to dollar strings only at the output boundary (TOON/JSON rendering).
 ## Consequences
 
 - Arithmetic is exact and comparisons are trivial; no float equality hazards.
-- Providers must convert source amounts (Plaid decimals, CSV strings) to cents at the adapter boundary.
+- Providers must convert source amounts (SimpleFIN decimal strings, CSV strings) to cents at the adapter boundary.
 - USD-only is assumed in v1; a `currency` field exists on canonical records, so multi-currency remains representable later without a schema break.

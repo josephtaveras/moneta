@@ -5,13 +5,13 @@ Status: accepted
 
 ## Context
 
-Plaid `access_token`s must be encrypted at rest, never logged, and never exposed through any response.
+Provider credentials (originally Plaid `access_token`s, now SimpleFIN Access URLs) must be encrypted at rest, never logged, and never exposed through any response.
 Moneta ships as a single static, cross-compiled binary using pure-Go SQLite (`modernc.org/sqlite`), which has no native at-rest encryption.
 SQLCipher would provide whole-database encryption but requires CGO, which breaks the clean four-target cross-compile matrix.
 
 ## Decision
 
-Encrypt secrets (SimpleFIN Access URLs and transitional Plaid access tokens) at the application layer with AES-256-GCM, key supplied via the `MONETA_ENCRYPTION_KEY` env var (32-byte base64).
+Encrypt secrets (SimpleFIN Access URLs, plus legacy Plaid access tokens kept in older databases) at the application layer with AES-256-GCM, key supplied via the `MONETA_ENCRYPTION_KEY` env var (32-byte base64).
 Do not adopt SQLCipher.
 
 ## Consequences
