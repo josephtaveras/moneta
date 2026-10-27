@@ -1,11 +1,12 @@
 # Moneta - Architecture Plan
 
 Historical architecture record: the active provider is now SimpleFIN, and the Plaid adapter and SDK have been removed.
-See `simplefin-plan.md` for current behavior and acceptance scope; Plaid sections below describe the original implementation.
+Plaid sections below describe the original implementation.
 
 Status: historical architecture and Phase 1-4 implementation record.
-The active scope is [SimpleFIN cutover and reconciliation](simplefin-plan.md), which supersedes Plaid-first onboarding, automatic category availability, and future feature commitments below.
-Existing data structures and reports remain unless the cutover plan explicitly changes them.
+The completed [SimpleFIN cutover](simplefin-plan.md) supersedes Plaid-first onboarding, automatic category availability, and future feature commitments below.
+Current scope and the rule for authorizing new milestones live in [product-spec.md](product-spec.md).
+Existing data structures and reports remain unless a later authorized milestone changes them.
 
 Moneta is a self-hosted personal + business finance data hub whose primary consumer is an AI agent, not a human UI.
 It ingests financial data from pluggable providers, normalizes it into a canonical model in SQLite, and exposes it through a token-efficient AXI CLI (TOON output) and a small REST API.
@@ -302,7 +303,7 @@ These three requirements are binding for Phase 1 and beyond; code that violates 
 ## Deployment
 
 Recommended: native binary with a scheduled sync via launchd (macOS) or cron/systemd timers (Linux).
-Containerized deployment is supported via the optional Dockerfile for server/NAS self-hosting.
+An optional Dockerfile for server/NAS self-hosting is planned but has not shipped.
 
 ## Build phases
 

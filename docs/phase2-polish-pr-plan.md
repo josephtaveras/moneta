@@ -1,5 +1,8 @@
 # Phase 2 Polish PR Plan
 
+**Status:** historical hand-off plan; Phase 1-4 work has shipped, and the SimpleFIN cutover later removed the Plaid adapter these steps describe.
+Do not treat the instructions below as active work.
+
 Small hardening stack from the accepted Phase 2 full review (2026-07-23).
 Do **not** start Phase 3 analytics work in this stack; that has its own plan (`docs/phase3-analytics-plan.md`).
 Do **not** commit or push unless the maintainer explicitly asks.

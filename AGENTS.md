@@ -8,14 +8,16 @@ Full architecture: `docs/moneta-plan.md`.
 
 ## Current Goal
 
-SimpleFIN cutover and financial reconciliation are the active priority, authorized by the maintainer.
-Read `docs/simplefin-plan.md` and `docs/product-spec.md` before implementation.
-The historical Phase 1-4 features are implemented, but real-data correctness is the acceptance gate.
-Keep the Go/SQLite/CLI foundation and avoid adding new analytics, generic provider infrastructure, or a rules framework.
+The SimpleFIN cutover is complete and merged to `main` (PR #35, 2026-10-27); `docs/simplefin-plan.md` is its record.
+No follow-on milestone is authorized yet.
+Begin feature work only after the maintainer authorizes a milestone with stated acceptance criteria; candidates are listed under Deferred Work in `docs/simplefin-plan.md`.
+Read `docs/product-spec.md` and `docs/simplefin-plan.md` before implementation.
+Real-data correctness remains the acceptance gate for any change to ingestion, classification, or reports.
+SimpleFIN is the only active adapter.
+SimpleFIN recurring detection stays paused until the unresolved classifications are reviewed on live data.
+Keep the Go/SQLite/CLI foundation and avoid adding generic provider infrastructure or a rules framework.
 Preserve local corrections across overlapping imports and treat partial provider responses conservatively.
-SimpleFIN is the only active adapter after representative statement validation.
-Preserve historical provider rows and migrations; missing statements are optional follow-up, not a build blocker.
-Do not begin A2 taxonomy or other feature expansion during this cutover.
+Preserve historical provider rows and migrations, and never rewrite a published migration.
 
 ## Working Rules
 
@@ -36,14 +38,16 @@ Do not begin A2 taxonomy or other feature expansion during this cutover.
 - All private material lives in gitignored `.local/` or in the local database/config, never in the repo.
 - Docs, examples, and test fixtures use the neutral default taxonomy and fake data only.
 - Commits use the repo-local noreply git identity; verify with `git config user.email` before committing.
-- Secrets (SimpleFIN setup tokens and Access URLs, Plaid tokens, API keys, encryption keys) come from env vars only, are never logged, and never appear in code, fixtures, or docs.
+- Secrets (SimpleFIN setup tokens and Access URLs, legacy Plaid tokens in older databases, API keys, encryption keys) come from env vars only, are never logged, and never appear in code, fixtures, or docs.
 
 ## Important Files
 
 - `README.md` - human-facing overview.
 - `docs/product-spec.md` - product frame: MVP, current priority, non-goals.
 - `docs/moneta-plan.md` - approved architecture: schema, provider interface, AXI commands, phases.
+- `docs/simplefin-plan.md` - SimpleFIN cutover record: provider decisions, sync limits, acceptance checklist, and deferred work.
 - `docs/decisions/` - ADRs; decisions future agents should preserve.
+- `docs/phase*-plan.md` - historical hand-off plans for the shipped Phase 1-4 work; not active instructions.
 - `internal/report/` - documents whose CLI and REST payloads must stay identical (the dashboard today). Add a document here instead of writing a second builder in `internal/api`; most commands still keep a per-surface builder, which is fine while the two are allowed to differ.
 
 ## Done Means
@@ -56,5 +60,5 @@ Do not begin A2 taxonomy or other feature expansion during this cutover.
 
 - Investment holdings/positions (balance-level tracking only in v1).
 - RocketMoney CSV importer implementation (Phase 2+; no stub exists yet).
-- Plaid webhooks, whole-database encryption, multi-currency, brokerages.
+- Whole-database encryption, multi-currency, brokerages.
 - Human-facing web UI (roadmap item, post-v1; agent interfaces come first).

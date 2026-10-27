@@ -1,5 +1,8 @@
 # Phase 2 Review Fix PR Plan
 
+**Status:** historical hand-off plan; Phase 1-4 work has shipped, and the SimpleFIN cutover later removed the Plaid adapter these steps describe.
+Do not treat the instructions below as active work.
+
 Hand-off for post-review hardening of Phase 2 Moneta (2a poison-skip, 2b `sync`, 2c `status`, 2d `accounts`/`tx`).
 Do **not** start Phase 3 analytics or the deferred REST mirror in this stack.
 Do **not** commit or push unless the maintainer explicitly asks.

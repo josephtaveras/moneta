@@ -2,6 +2,7 @@
 
 Executable hand-off for Phase 4 (build phase 4, "Recurring detection + anomaly detection", per `docs/moneta-plan.md` build phase 4).
 **Status:** complete through PR9; the full graph below is implemented and both dashboard slots have definitive semantics.
+This is now a historical hand-off plan; SimpleFIN sync does not run the recurring detector, and Plaid references describe the removed adapter.
 Phase 3 is frozen; do not modify Phase 3 analytics behavior except the dashboard slots this phase fills, the merchant/card-date schema and Plaid boundary fixes, and the detector schema below.
 No new dependencies.
 Keep CGO-free.

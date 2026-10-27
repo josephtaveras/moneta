@@ -1,5 +1,8 @@
 # Phase 3 Analytics PR Plan
 
+**Status:** historical hand-off plan; Phase 1-4 work has shipped, and the SimpleFIN cutover later removed the Plaid adapter these steps describe.
+Do not treat the instructions below as active work.
+
 Executable hand-off for Phase 3 (build phase 3, "Analytics views", per `docs/moneta-plan.md:298-302`).
 Do **not** implement until the maintainer explicitly starts a PR.
 Do **not** start Phase 4 (recurring / anomaly detection) work in this stack.

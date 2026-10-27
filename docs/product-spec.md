@@ -6,16 +6,18 @@ Moneta is a single-owner, local-first finance data hub for an AI agent.
 It imports USD accounts, balances, and posted transactions from SimpleFIN into SQLite and exposes deterministic CLI reports.
 Go, direct SQL, integer cents, encrypted provider credentials, and the existing TOON/JSON boundary remain the foundation.
 
-## Current Priority
+## Current State
 
-The acceptance criterion is that imported data and core reports reconcile over representative statement periods, with remaining coverage gaps documented.
-Additional statements are optional follow-up and do not block finishing the build.
+The SimpleFIN cutover is complete and merged to `main` (PR #35, 2026-10-27).
+Imported data and core reports reconcile over representative statement periods, and remaining coverage gaps are documented.
+Additional statements are optional follow-up.
 Unverified account balances and unresolved classifications must not be presented as fully reconciled.
 Feature count and completion of the historical build phases are not evidence of financial accuracy.
-The active scope and acceptance checklist live in [simplefin-plan.md](simplefin-plan.md).
+No follow-on milestone is authorized yet; each one needs explicit maintainer authorization and stated acceptance criteria.
+The cutover decisions, acceptance checklist, and deferred work live in [simplefin-plan.md](simplefin-plan.md).
 The historical architecture and delivered phases remain in [moneta-plan.md](moneta-plan.md).
 
-## MVP
+## Delivered MVP
 
 1. Claim a SimpleFIN setup token locally and persist only the encrypted Access URL.
 2. Discover accounts and explicitly configure their types and balance signs.
@@ -28,9 +30,9 @@ The historical architecture and delivered phases remain in [moneta-plan.md](mone
 
 - Single owner, USD only, account-level balances rather than investment positions.
 - SimpleFIN is the only active provider; historical Plaid data remains readable, with no automatic merge into SimpleFIN accounts.
-- No new analytics, A2 taxonomy, generic rule engine, provider registry, web UI, or REST write API.
-- Existing REST reads and advanced analytics remain available, but receive no feature expansion before reconciliation.
-- SimpleFIN sync does not run recurring detection automatically during this validation phase.
+- No new analytics, A2 taxonomy, generic rule engine, provider registry, web UI, or REST write API without an authorized milestone.
+- Existing REST reads and advanced analytics remain available, but receive no feature expansion without an authorized milestone.
+- SimpleFIN sync does not run recurring detection until the unresolved classifications are reviewed on live data.
 - Card terms and categories unavailable from the provider remain unknown; names and signs must not be guessed.
 - Personal/business routing, CSV imports, budgets, and unused schema provisions are deferred.
 - No new dependencies, telemetry, multi-user hosting, or background scheduling framework.
@@ -43,7 +45,9 @@ Private configuration, exports, and reconciliation evidence stay in gitignored .
 Provider HTTP errors never expose credential-bearing URLs or raw response bodies.
 Bank data is read-only at SimpleFIN; local corrections modify only Moneta.
 
-## Done Means
+## Cutover Acceptance
+
+Every item below was met when the cutover merged.
 
 Synthetic integration tests cover identity collisions, repeated imports, corrections, failed/partial requests, and liability signs.
 A live connection is configured and core reports reconcile over a stated statement period.

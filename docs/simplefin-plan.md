@@ -1,6 +1,7 @@
 # SimpleFIN Cutover and Reconciliation
 
-Status: SimpleFIN cutover complete under representative statement validation; the unused Plaid adapter and SDK are removed.
+Status: complete and merged to `main` in PR #35 on 2026-10-27; this file is now the cutover record.
+Representative statement validation passed, and the unused Plaid adapter and SDK are removed.
 Synthetic HTTPS integration tests, live repeat-sync checks, build, vet, formatting, staticcheck, golangci-lint, CGO-free tests, race tests, and benchmark smoke checks pass.
 Live owner-account configuration, initial import, and repeat-sync row stability are verified.
 Owner-confirmed transfer corrections survived a full live history replay.
@@ -95,6 +96,7 @@ The encryption key needs a separate password-manager backup.
 
 ## Deferred Work
 
+Each item below needs a separately authorized milestone with stated acceptance criteria.
 Existing REST and advanced analytics are frozen for feature expansion.
 Shared response builders may replace duplication when a touched command requires it, without a generic presentation framework.
 Unused entity rules, budget tables, and materialized net-worth provisions are not activated.
