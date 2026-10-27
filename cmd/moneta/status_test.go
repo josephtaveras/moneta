@@ -277,7 +277,7 @@ func TestStatusExitsThreeAfterReauthPersist(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open database: %v", err)
 	}
-	if err := store.SetProviderItemStatus(ctx, db, plaidProviderName, "item-one", "login_required"); err != nil {
+	if err := store.SetProviderItemStatus(ctx, db, "plaid", "item-one", "login_required"); err != nil {
 		t.Fatalf("SetProviderItemStatus() error: %v", err)
 	}
 	if err := db.Close(); err != nil {
@@ -319,7 +319,7 @@ func seedStatusItems(t *testing.T, databasePath string, items []seedItem) {
 
 	for _, item := range items {
 		if _, err := store.SaveProviderItem(ctx, db, store.ProviderItemSecret{
-			Provider:              plaidProviderName,
+			Provider:              "plaid",
 			ItemID:                item.itemID,
 			Institution:           item.institution,
 			AccessTokenCiphertext: []byte("placeholder-ciphertext"),

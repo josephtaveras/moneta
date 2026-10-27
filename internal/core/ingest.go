@@ -528,10 +528,10 @@ func (w *syncWriter) updateTransaction(
 			merchant_raw = ?,
 			merchant_display = ?,
 			merchant_norm = ?,
-			category_id = ?,
+			category_id = CASE WHEN classification_manual = 1 THEN category_id ELSE ? END,
 			status = ?,
-			is_transfer = ?,
-			excluded = ?,
+			is_transfer = CASE WHEN classification_manual = 1 THEN is_transfer ELSE ? END,
+			excluded = CASE WHEN classification_manual = 1 THEN excluded ELSE ? END,
 			dedup_hash = ?,
 			updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
 		WHERE id = ?
@@ -870,12 +870,14 @@ func (w *syncWriter) finish(ctx context.Context, batch *canon.SyncBatch) error {
 	// The skipped count is the durable audit trail for row-local poison:
 	// provider-side skips from the batch plus ingest-side skips recorded
 	// while applying it. Only the count is persisted, never record payloads.
+	// The connection warning count lets later syncs find the last checkpoint
+	// committed without warnings; warning text is never persisted.
 	if _, err := w.tx.ExecContext(ctx, `
 		INSERT INTO import_runs (
 			provider, provider_item_id, status, cursor_before, cursor_after,
 			accounts_seen, transactions_added, transactions_modified,
-			transactions_removed, skipped, completed_at
-		) VALUES (?, ?, 'succeeded', ?, ?, ?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+			transactions_removed, skipped, connection_warnings, completed_at
+		) VALUES (?, ?, 'succeeded', ?, ?, ?, ?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 	`,
 		w.provider,
 		w.providerItemID,
@@ -886,6 +888,7 @@ func (w *syncWriter) finish(ctx context.Context, batch *canon.SyncBatch) error {
 		len(batch.Modified),
 		len(batch.Removed),
 		len(batch.Skipped)+len(w.skipped),
+		batch.ConnectionWarnings,
 	); err != nil {
 		return fmt.Errorf("record successful import run: %w", err)
 	}

@@ -53,31 +53,31 @@ func runServe(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 		return 2
 	}
 	if flags.NArg() != 0 {
-		fmt.Fprintln(stderr, "error: serve does not accept positional arguments")
+		_, _ = fmt.Fprintln(stderr, "error: serve does not accept positional arguments")
 		return 2
 	}
 	if *databasePath == "" {
-		fmt.Fprintln(stderr, "error: MONETA_DB_PATH or --db is required")
+		_, _ = fmt.Fprintln(stderr, "error: MONETA_DB_PATH or --db is required")
 		return 2
 	}
 	apiKey := os.Getenv(apiKeyEnvironment)
 	if *apiKeyFlag != "" {
 		apiKey = *apiKeyFlag
-		fmt.Fprintln(stderr, apiKeyFlagWarning)
+		_, _ = fmt.Fprintln(stderr, apiKeyFlagWarning)
 	}
 	if apiKey == "" {
-		fmt.Fprintln(stderr, "error: MONETA_API_KEY or --api-key is required")
+		_, _ = fmt.Fprintln(stderr, "error: MONETA_API_KEY or --api-key is required")
 		return 2
 	}
 	loopback, err := api.ValidateListenAddress(*listenAddress, *allowNonLoopback)
 	if err != nil {
-		fmt.Fprintf(stderr, "error: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 		return 2
 	}
 
 	database, err := store.Open(ctx, *databasePath)
 	if err != nil {
-		fmt.Fprintf(stderr, "error: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 		return 1
 	}
 	defer func() { _ = database.Close() }()
@@ -85,12 +85,12 @@ func runServe(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 	logger := log.New(stderr, "", log.LstdFlags)
 	handler, err := api.NewHandler(database, apiKey, logger)
 	if err != nil {
-		fmt.Fprintf(stderr, "error: configure REST server: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: configure REST server: %v\n", err)
 		return 1
 	}
 	listener, err := net.Listen("tcp", *listenAddress)
 	if err != nil {
-		fmt.Fprintf(stderr, "error: listen on %s: %v\n", *listenAddress, err)
+		_, _ = fmt.Fprintf(stderr, "error: listen on %s: %v\n", *listenAddress, err)
 		return 1
 	}
 	defer func() { _ = listener.Close() }()
@@ -103,7 +103,7 @@ func runServe(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 	}
 	logger.Printf("REST listening on %s (API-key authentication enabled)", listener.Addr())
 	if err := api.Serve(ctx, listener, handler); err != nil {
-		fmt.Fprintf(stderr, "error: serve REST API: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: serve REST API: %v\n", err)
 		return 1
 	}
 	return 0

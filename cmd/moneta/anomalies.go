@@ -46,28 +46,28 @@ func runAnomaliesAt(
 		return 2
 	}
 	if flags.NArg() != 0 {
-		fmt.Fprintln(stderr, "error: anomalies does not accept positional arguments")
+		_, _ = fmt.Fprintln(stderr, "error: anomalies does not accept positional arguments")
 		return 2
 	}
 	asOf := now.Format(time.DateOnly)
 	if err := store.ValidateAnomalyPeriod(asOf, *period); err != nil {
-		fmt.Fprintf(stderr, "error: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 		return 2
 	}
 	if *databasePath == "" {
-		fmt.Fprintln(stderr, "error: MONETA_DB_PATH or --db is required")
+		_, _ = fmt.Fprintln(stderr, "error: MONETA_DB_PATH or --db is required")
 		return 2
 	}
 
 	database, err := store.Open(ctx, *databasePath)
 	if err != nil {
-		fmt.Fprintf(stderr, "error: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 		return 1
 	}
 	defer func() { _ = database.Close() }()
 	anomalyReport, err := store.ReadAnomalies(ctx, database, asOf, *period)
 	if err != nil {
-		fmt.Fprintf(stderr, "error: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 		return 1
 	}
 	format := cli.FormatTOON
@@ -75,7 +75,7 @@ func runAnomaliesAt(
 		format = cli.FormatJSON
 	}
 	if err := cli.Render(stdout, report.Anomalies(anomalyReport), format); err != nil {
-		fmt.Fprintf(stderr, "error: render anomalies: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: render anomalies: %v\n", err)
 		return 1
 	}
 	return 0

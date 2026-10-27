@@ -1,6 +1,12 @@
 # Moneta - Architecture Plan
 
-Status: approved design. Phase 1 implementation and post-review hardening are complete. Phase 2 is complete: the poison skip, production `moneta sync`, the `moneta status` / `accounts` / `tx` / `spend` / `cashflow` / `networth` / `debts` reads, the authenticated loopback read-only REST mirror, and GitHub Actions CI are in place, and the post-review hardening stack (`docs/phase2-review-fix-pr-plan.md`) is complete. Phase 3 is complete: the correctness foundation, compute-on-read net-worth history, month-over-month category spend, top-merchant spend, daily credit-utilization, savings-rate, and heuristic fixed-variable trends, the credit-card-only `moneta cards` view, and the composed `moneta dashboard`. Phase 4 is complete: recurring detection and lifecycle persistence, recurring/bills/anomaly CLI and REST reads, and honest dashboard bills and anomaly projections all ship. Later work begins only when explicitly prioritized.
+Historical architecture record: the active provider is now SimpleFIN, and the Plaid adapter and SDK have been removed.
+See `simplefin-plan.md` for current behavior and acceptance scope; Plaid sections below describe the original implementation.
+
+Status: historical architecture and Phase 1-4 implementation record.
+The active scope is [SimpleFIN cutover and reconciliation](simplefin-plan.md), which supersedes Plaid-first onboarding, automatic category availability, and future feature commitments below.
+Existing data structures and reports remain unless the cutover plan explicitly changes them.
+
 Moneta is a self-hosted personal + business finance data hub whose primary consumer is an AI agent, not a human UI.
 It ingests financial data from pluggable providers, normalizes it into a canonical model in SQLite, and exposes it through a token-efficient AXI CLI (TOON output) and a small REST API.
 

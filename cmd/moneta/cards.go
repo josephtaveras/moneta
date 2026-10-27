@@ -32,24 +32,24 @@ func runCards(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 		return 2
 	}
 	if flags.NArg() != 0 {
-		fmt.Fprintln(stderr, "error: cards does not accept positional arguments")
+		_, _ = fmt.Fprintln(stderr, "error: cards does not accept positional arguments")
 		return 2
 	}
 	if *databasePath == "" {
-		fmt.Fprintln(stderr, "error: MONETA_DB_PATH or --db is required")
+		_, _ = fmt.Fprintln(stderr, "error: MONETA_DB_PATH or --db is required")
 		return 2
 	}
 
 	database, err := store.Open(ctx, *databasePath)
 	if err != nil {
-		fmt.Fprintf(stderr, "error: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 		return 1
 	}
 	defer func() { _ = database.Close() }()
 
 	report, err := store.ReadCards(ctx, database)
 	if err != nil {
-		fmt.Fprintf(stderr, "error: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 		return 1
 	}
 	format := cli.FormatTOON
@@ -57,7 +57,7 @@ func runCards(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 		format = cli.FormatJSON
 	}
 	if err := cli.Render(stdout, buildCardsDoc(report), format); err != nil {
-		fmt.Fprintf(stderr, "error: render cards: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: render cards: %v\n", err)
 		return 1
 	}
 	return 0

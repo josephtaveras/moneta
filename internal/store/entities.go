@@ -17,7 +17,7 @@ func EnsureDefaultEntity(ctx context.Context, db *sql.DB) (int64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("begin default entity bootstrap: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO entities (kind, name)

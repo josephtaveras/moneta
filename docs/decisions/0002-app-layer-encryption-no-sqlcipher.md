@@ -11,7 +11,7 @@ SQLCipher would provide whole-database encryption but requires CGO, which breaks
 
 ## Decision
 
-Encrypt secrets (Plaid access tokens) at the application layer with AES-256-GCM, key supplied via the `MONETA_ENCRYPTION_KEY` env var (32-byte base64).
+Encrypt secrets (SimpleFIN Access URLs and transitional Plaid access tokens) at the application layer with AES-256-GCM, key supplied via the `MONETA_ENCRYPTION_KEY` env var (32-byte base64).
 Do not adopt SQLCipher.
 
 ## Consequences

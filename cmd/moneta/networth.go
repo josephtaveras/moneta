@@ -54,7 +54,7 @@ func runNetworthAt(
 		return 2
 	}
 	if flags.NArg() != 0 {
-		fmt.Fprintln(stderr, "error: networth does not accept positional arguments")
+		_, _ = fmt.Fprintln(stderr, "error: networth does not accept positional arguments")
 		return 2
 	}
 	historyProvided := false
@@ -64,11 +64,11 @@ func runNetworthAt(
 		}
 	})
 	if historyProvided && *asOf != "" {
-		fmt.Fprintln(stderr, "error: --history cannot be combined with --as-of")
+		_, _ = fmt.Fprintln(stderr, "error: --history cannot be combined with --as-of")
 		return 2
 	}
 	if err := validateCLIDate("as-of", *asOf); err != nil {
-		fmt.Fprintf(stderr, "error: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 		return 2
 	}
 	var historyFilter store.NetworthHistoryFilter
@@ -76,18 +76,18 @@ func runNetworthAt(
 		var err error
 		historyFilter, err = store.ResolveNetworthHistoryWindow(*history, now)
 		if err != nil {
-			fmt.Fprintf(stderr, "error: --history %v\n", err)
+			_, _ = fmt.Fprintf(stderr, "error: --history %v\n", err)
 			return 2
 		}
 	}
 	if *databasePath == "" {
-		fmt.Fprintln(stderr, "error: MONETA_DB_PATH or --db is required")
+		_, _ = fmt.Fprintln(stderr, "error: MONETA_DB_PATH or --db is required")
 		return 2
 	}
 
 	database, err := store.Open(ctx, *databasePath)
 	if err != nil {
-		fmt.Fprintf(stderr, "error: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 		return 1
 	}
 	defer func() { _ = database.Close() }()
@@ -99,11 +99,11 @@ func runNetworthAt(
 	if historyProvided {
 		report, err := store.ReadNetworthHistory(ctx, database, historyFilter)
 		if err != nil {
-			fmt.Fprintf(stderr, "error: %v\n", err)
+			_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 			return 1
 		}
 		if err := cli.Render(stdout, buildNetworthHistoryDoc(report), format); err != nil {
-			fmt.Fprintf(stderr, "error: render networth history: %v\n", err)
+			_, _ = fmt.Fprintf(stderr, "error: render networth history: %v\n", err)
 			return 1
 		}
 		return 0
@@ -112,11 +112,11 @@ func runNetworthAt(
 	filter := store.NetworthFilter{AsOf: *asOf}
 	report, err := store.ReadNetworth(ctx, database, filter)
 	if err != nil {
-		fmt.Fprintf(stderr, "error: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 		return 1
 	}
 	if err := cli.Render(stdout, buildNetworthDoc(report, filter), format); err != nil {
-		fmt.Fprintf(stderr, "error: render networth: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: render networth: %v\n", err)
 		return 1
 	}
 	return 0

@@ -45,3 +45,6 @@ jobs:
 
       - name: Race test
         run: go test -race ./...
+
+      - name: Benchmarks
+        run: go test -run '^$' -bench . -benchtime 1x ./...
